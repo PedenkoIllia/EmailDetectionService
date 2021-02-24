@@ -1,5 +1,4 @@
-﻿using EmailDetectionService.Configuration;
-using log4net;
+﻿using log4net;
 using Microsoft.Extensions.Configuration;
 using System;
 
@@ -23,14 +22,23 @@ namespace EmailDetectionService
             {
                 log.Error("Problem with appsettings.json file. ", e);
             }
-        }        
+        }
 
-        public static ServiceConfig ServiceConfig 
+        public static string ServiceName 
+        { 
+            get => AppConfiguration.GetValue<string>("ServiceConfig:ServiceName", "EmailDetectionService"); 
+        }
+        public static string ObservableFolderPath 
         {
-            get 
-            {
-                return AppConfiguration.GetSection("ServiceConfig").Get<ServiceConfig>();
-            }
+            get => AppConfiguration.GetValue<string>("ServiceConfig:ObservableFolderPath", "."); 
+        }
+        public static int FolderCheckTimeout 
+        { 
+            get => AppConfiguration.GetValue<int>("ServiceConfig:FolderCheckTimeout", 1000); 
+        }
+        public static int MaxProcessingFilesCount 
+        {
+            get => AppConfiguration.GetValue<int>("ServiceConfig:MaxProcessingFilesCount", 10);
         }
 
         public static string GetConnectionString(string connectionName)

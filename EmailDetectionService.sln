@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EmailDetectionService", "Em
 EndProject
 Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "EDSDatabase", "EDSDatabase\EDSDatabase.sqlproj", "{C60A136E-3748-4B8E-9C43-01736242FF28}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmailDetectionServiceTetsts", "EmailDetectionServiceTetsts\EmailDetectionServiceTetsts.csproj", "{6AE84F0E-09CA-4402-BC27-7729130F7964}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EmailDetectionServiceTetsts", "EmailDetectionServiceTetsts\EmailDetectionServiceTetsts.csproj", "{6AE84F0E-09CA-4402-BC27-7729130F7964}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -21,7 +21,7 @@ namespace EmailDetectionService
 
         static void Main(string[] args)
         {
-            string serviceName = Config.ServiceConfig.ServiceName ?? "EmailDetectionService";
+            string serviceName = Config.ServiceName;
             bool isService = true;
 
             for (int i = 0; i < args.Length; i++)

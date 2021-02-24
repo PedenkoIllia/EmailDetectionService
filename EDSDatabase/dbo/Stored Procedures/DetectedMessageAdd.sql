@@ -4,7 +4,7 @@
       @Subject    NVARCHAR(255),
       @From       VARCHAR(255),
       @To         VARCHAR(255),
-      @Date       DATETIME
+      @Date       VARCHAR(50)
     )
 AS
     INSERT INTO [dbo].[DetectedMessages] (MessageId, [Subject], [From], [To], [Date])

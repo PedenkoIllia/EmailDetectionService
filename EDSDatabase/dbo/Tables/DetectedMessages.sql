@@ -5,7 +5,7 @@
     [Subject]   NVARCHAR(255)   NULL, 
     [From]      VARCHAR(255)    NULL, 
     [To]        VARCHAR(255)    NULL, 
-    [Date]      DATETIME        NULL,
+    [Date]      VARCHAR(50)        NULL,
 
     CONSTRAINT [DetectedMessagesId] PRIMARY KEY CLUSTERED ([ID] ASC)
 )

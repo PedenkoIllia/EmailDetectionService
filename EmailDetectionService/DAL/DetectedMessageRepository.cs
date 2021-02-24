@@ -41,7 +41,7 @@ namespace EmailDetectionService.DAL
                                 message.Subject = reader.GetString(2);
                                 message.From = reader.GetString(3);
                                 message.To = reader.GetString(4);
-                                message.Date = reader.GetDateTime(5);
+                                message.Date = reader.GetString(5);
 
                                 messages.Add(message);
                             }
@@ -74,14 +74,15 @@ namespace EmailDetectionService.DAL
                     cmd.Parameters.AddWithValue("@Date", message.Date);
                     cmd.Connection = conn;
 
-                    conn.Open();
                     try
                     {
+                        conn.Open();
                         cmd.ExecuteNonQuery();
                     }
-                    catch (Exception ex)
+                    catch (SqlException ex)
                     {
                         _log.Error("Database error: " + ex.ToString() + ex.Data.ToString());
+                        return false;
                     }
                 }
             }

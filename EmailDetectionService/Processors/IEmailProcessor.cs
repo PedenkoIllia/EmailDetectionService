@@ -2,7 +2,7 @@
 
 namespace EmailDetectionService.Processors
 {
-    public interface IEmailProcessing
+    public interface IEmailProcessor
     {
         void StartProcessMessages();
         void ProcessMessagesQueue(IEnumerable<string> emailFiles);

@@ -1,4 +1,5 @@
 ﻿using EmailDetectionService.DAL;
+using EmailDetectionService.Extensions;
 using EmailDetectionService.Models;
 using EmailDetectionService.Processors;
 using log4net;
@@ -15,7 +16,7 @@ namespace EmailDetectionService
         private static readonly ILog _log = LogManager.GetLogger("EmailDetectionService");
 
         private IDataSourceDetectedMessages dataSource;
-        private IEmailProcessing processor;
+        private IEmailProcessor processor;
         
         public void Start()
         {
@@ -23,7 +24,7 @@ namespace EmailDetectionService
             XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
 
             dataSource = new DetectedMessageRepository();
-            processor = new EmailProcessor(dataSource);
+            processor = new EmailProcessor(dataSource, Config.MaxProcessingFilesCount);
 
             _log.Info("Service started");
             Thread thread = new Thread(new ThreadStart(processor.StartProcessMessages));
@@ -32,27 +33,33 @@ namespace EmailDetectionService
 
         public void Stop()
         {
-            _log.Info("Service stopped");
+            _log.Info("Service stopping");
             processor.StopProcessMessages();
         }
 
         public void RunAsConsole(string serviceName)
         {
-            Console.WriteLine($"----Service {serviceName} started in console mode----");
-
             dataSource = new DetectedMessageRepository();
 
+            Console.WriteLine($"----Service {serviceName} started in console mode----");
             Console.WriteLine($"In this mode you can see last 100 records about detected emails");
             Console.WriteLine("Press Enter to get the last 100 records");
             Console.ReadLine();
-            
+          
             try
             {
-                var messages = dataSource.GetMessages(5);
+                var messages = dataSource.GetMessages();
+
+                Console.SetBufferSize(160, 150);
+                Console.SetWindowSize(160, 40);
                 Console.WriteLine("Detected emails:");
+                Console.WriteLine("         Message-ID         |              Subject              |            From            |             To             |              Date             |");
+                Console.WriteLine("────────────────────────────┼───────────────────────────────────┼────────────────────────────┼────────────────────────────┼───────────────────────────────┤");
                 foreach (MessageModel msg in messages)
                 {
-                    Console.WriteLine(msg);
+                    
+
+                    Console.WriteLine(msg.ToFormatString());
                 }
 
                 Console.Write("Press Enter to exit");
@@ -60,7 +67,7 @@ namespace EmailDetectionService
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Problem with database: " + ex.Message);
+                Console.WriteLine(ex.Message);
                 Console.ReadLine();
             }
         }
