@@ -2,6 +2,7 @@
 using log4net;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 
 namespace EmailDetectionService.DAL
@@ -25,7 +26,7 @@ namespace EmailDetectionService.DAL
 	                                      ORDER BY [ID] DESC) AS Result
                                         ORDER BY Result.ID ASC";
 
-                    cmd.CommandType = System.Data.CommandType.Text;
+                    cmd.CommandType = CommandType.Text;
                     cmd.Parameters.AddWithValue("@Count", maxCount);
                     cmd.Connection = conn;
 
@@ -62,17 +63,15 @@ namespace EmailDetectionService.DAL
         {
             using (SqlConnection conn = new SqlConnection(Config.GetConnectionString(CONNECTION_STRING_NAME)))
             {
-                using (SqlCommand cmd = new SqlCommand())
+                using (SqlCommand cmd = new SqlCommand("DetectedMessageAdd", conn))
                 {
-                    cmd.CommandText = @"dbo.DetectedMessageAdd @MessageId, @Subject, @From, @To, @Date";
+                    cmd.CommandType = CommandType.StoredProcedure;
 
-                    cmd.CommandType = System.Data.CommandType.Text;
                     cmd.Parameters.AddWithValue("@MessageId", message.Message_ID);
                     cmd.Parameters.AddWithValue("@Subject", message.Subject);
                     cmd.Parameters.AddWithValue("@From", message.From);
                     cmd.Parameters.AddWithValue("@To", message.To);
                     cmd.Parameters.AddWithValue("@Date", message.Date);
-                    cmd.Connection = conn;
 
                     try
                     {
@@ -92,7 +91,39 @@ namespace EmailDetectionService.DAL
 
         public bool InsertMessagesScope(List<MessageModel> messages)
         {
-            throw new NotImplementedException();
+            DataTable detectedEmailList = new DataTable("DetectedEmailList");
+            detectedEmailList.Columns.Add("MessageId", typeof(string));
+            detectedEmailList.Columns.Add("Subject", typeof(string));
+            detectedEmailList.Columns.Add("From", typeof(string));
+            detectedEmailList.Columns.Add("To", typeof(string));
+            detectedEmailList.Columns.Add("Date", typeof(string));
+
+            foreach (MessageModel msg in messages)
+            {
+                detectedEmailList.Rows.Add(msg.Message_ID, msg.Subject, msg.From, msg.To, msg.Date);
+            }
+
+            using (SqlConnection conn = new SqlConnection(Config.GetConnectionString(CONNECTION_STRING_NAME)))
+            {
+                using (SqlCommand cmd = new SqlCommand("DetectedMessageAddRange", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("@EmailList", detectedEmailList);
+
+                    try
+                    {
+                        conn.Open();
+                        cmd.ExecuteNonQuery();
+                    }
+                    catch (SqlException ex)
+                    {
+                        _log.Error("Database error: " + ex.ToString() + ex.Data.ToString());
+                        return false;
+                    }
+                }
+            }
+
+            return true;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using EmailDetectionService.DAL;
+using EmailDetectionService.Helper;
 using EmailDetectionService.Models;
 using log4net;
 using MimeKit;
@@ -17,17 +18,22 @@ namespace EmailDetectionService.Processors
         public JobController Controller;
 
         private readonly List<string> EmailFilesInProcess = new List<string>();
-        private object processinsgFilesLock = new object();
+        private object processingFilesLock = new object();
 
-        public EmailProcessor(IDataSourceDetectedMessages dataSource, int maxThreadCount = 10)
+        private readonly List<MessageObject> ProcessedMessages = new List<MessageObject>();
+        private object processedMessagesLock = new object();
+
+        public EmailProcessor(IDataSourceDetectedMessages dataSource)
         {
             this.dataSource = dataSource;
-            Controller = new JobController(maxThreadCount);
+            Controller = new JobController(Config.MaxProcessingFilesCount);
         }
 
         public void StartProcessMessages()
         {
             Controller.Start();
+            ProcessNotWritedMessages();
+            Controller.StartAdditionalProcess(() => DelayedDatabaseWrite());
             do
             {
                 string folderPath = Config.ObservableFolderPath;
@@ -35,7 +41,7 @@ namespace EmailDetectionService.Processors
                 {
                     List<string> newEmailFiles;
 
-                    lock (processinsgFilesLock)
+                    lock (processingFilesLock)
                     {
                         newEmailFiles = Directory.GetFiles(folderPath, "*.eml").ToList()
                                             .Except(EmailFilesInProcess)
@@ -67,7 +73,7 @@ namespace EmailDetectionService.Processors
                     {
                         try
                         {
-                            lock (processinsgFilesLock)
+                            lock (processingFilesLock)
                             {
                                 EmailFilesInProcess.Add(emailFile);
                             }
@@ -79,7 +85,7 @@ namespace EmailDetectionService.Processors
                         }
                         finally
                         {
-                            lock (processinsgFilesLock)
+                            lock (processingFilesLock)
                             {
                                 EmailFilesInProcess.Remove(emailFile);
                             }
@@ -95,42 +101,69 @@ namespace EmailDetectionService.Processors
         {
             try
             {
-                MessageModel msg = GetMessageModelFromFile(emailFile);
-                bool result = dataSource.InsertMessage(msg);
-                
-                if (result)
-                    RemoveFile(emailFile);
+                MessageModel msgModel = MessageParser.GetMessageModelFromFile(emailFile);
+                MessageObject message = new MessageObject { Model = msgModel, Path = emailFile };
+                lock(processedMessagesLock)
+                    ProcessedMessages.Add(message);
 
-                return result;
+                message.Path = SendToSubfolder(emailFile, "ProcessedFiles");
+
+                return true;
             }
             catch (Exception ex)
             {
                 _log.Error("Problem with file: " + emailFile, ex);
-                SendToFailed(emailFile);
+                SendToSubfolder(emailFile, "FailedFiles");
             }
 
             return false;
         }
 
-        public MessageModel GetMessageModelFromFile(string emailFile)
+        private void ProcessNotWritedMessages()
         {
-            var messageHeaders = HeaderList.Load(emailFile);
-            MessageModel message = new MessageModel()
+            string processedDirectory = Config.ObservableFolderPath + @"\ProcessedFiles";
+            if (Directory.Exists(processedDirectory))
             {
-                Message_ID = messageHeaders[HeaderId.MessageId],
-                Subject = messageHeaders[HeaderId.Subject],
-                From = messageHeaders[HeaderId.From],
-                To = messageHeaders[HeaderId.To],
-                Date = messageHeaders[HeaderId.Date]
-        };
+                foreach (string file in Directory.GetFiles(processedDirectory, "*.eml").ToList())
+                {
+                    try
+                    {
+                        MessageModel msgModel = MessageParser.GetMessageModelFromFile(file);
+                        ProcessedMessages.Add(new MessageObject { Model = msgModel, Path = file });
+                    }
+                    catch { }
+                }
+            }
+        }
 
-            if (message.From == null || message.Date == null)
-                throw new FormatException();
+        private void DelayedDatabaseWrite()
+        {
+            while (Controller.IsRunning)
+            {
+                Thread.Sleep(Config.DatabaseSyncDelay);
+                List<string> filePathList = new List<string>();
+                bool result;
 
-            if (String.IsNullOrEmpty(message.Message_ID))
-                message.Message_ID = "<" + Guid.NewGuid().ToString() + message.From.Substring(message.From.IndexOf('@')) + ">";
+                lock (processedMessagesLock)
+                {
+                    List<MessageModel> processedModels = ProcessedMessages.Select(x => x.Model).ToList();
+                    filePathList = ProcessedMessages.Select(x => x.Path).ToList();
+                    if (processedModels.Count > 0)
+                    {
+                        result = dataSource.InsertMessagesScope(processedModels);
+                        if(result)
+                        {
+                            ProcessedMessages.Clear();
+                        }
+                    }
+                }
 
-            return message;
+                foreach (string file in filePathList)
+                {
+                    _log.Info("Message writed into database: " + file);
+                    RemoveFile(file);
+                }
+            }
         }
 
         public void RemoveFile(string emailFile)
@@ -143,23 +176,27 @@ namespace EmailDetectionService.Processors
             {
                 _log.Error("Can't remove file! " + ex.Message);
             }
-}
+        }
 
-        public void SendToFailed(string message)
+        public string SendToSubfolder(string filePath, string subFolder)
         {
-            string fileName = message.Substring(message.LastIndexOf('\\'));
-            string failedDirectory = message.Remove(message.Length - fileName.Length) + @"\FailedFiles";
+            string fileName = filePath.Substring(filePath.LastIndexOf('\\'));
+            string subDirectory = filePath.Remove(filePath.Length - fileName.Length) + '\\' + subFolder;
+            string resultFilePath = subDirectory + fileName;
 
-            if (!Directory.Exists(failedDirectory))
-                Directory.CreateDirectory(failedDirectory);
+            if (!Directory.Exists(subDirectory))
+                Directory.CreateDirectory(subDirectory);
             try
             {
-                File.Move(message, failedDirectory + fileName, true);
+                File.Move(filePath, resultFilePath, true);
             }
             catch (Exception ex)
             {
-                _log.Error("Can't move file to failed! " + ex.Message);
+                _log.Error("Can't move file to subdirectory" + subFolder + "! " + ex.Message);
+                return filePath;
             }
+
+            return resultFilePath;
         }
 
         public void StopProcessMessages()

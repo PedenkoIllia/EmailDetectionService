@@ -39,6 +39,22 @@ namespace EmailDetectionService
                     Monitor.Wait(sync);
             }
         }
+
+        public void StartAdditionalProcess(Action newAction)
+        {
+            ThreadPool.QueueUserWorkItem(x =>
+            {
+                try
+                {
+                    newAction();
+                }
+                catch (Exception ex)
+                {
+                    _log.Error(ex);
+                }
+            });
+        }
+
         public void StartNewProcess(Action newAction)
         {
             lock (sync)

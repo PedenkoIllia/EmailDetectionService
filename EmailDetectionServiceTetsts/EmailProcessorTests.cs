@@ -16,29 +16,6 @@ namespace EmailDetectionServiceTetsts
             moqDataSource = new Mock<IDataSourceDetectedMessages>();
         }
 
-        [Theory]
-        [InlineData(@".\TestData\Emails\Sample1.eml")]
-        [InlineData(@".\TestData\Emails\Sample2.eml")]
-        [InlineData(@".\TestData\Emails\Sample3.eml")]
-        public void ParseMessageFromFileTest_NormalFile(string emailFileName)
-        {
-            EmailProcessor processor = new EmailProcessor(moqDataSource.Object);
-
-            MessageModel msg = processor.GetMessageModelFromFile(emailFileName);
-
-            Assert.True(msg.Message_ID != null && msg.Subject != null && msg.From != null && msg.To != null && msg.Date != null);
-        }
-
-        [Theory]
-        [InlineData(@".\TestData\PseudoEmails\Excel.eml")]
-        [InlineData(@".\TestData\PseudoEmails\Notepad.eml")]
-        public void ParseMessageFromFileTest_ThrowFormatException(string emailFileName)
-        {
-            EmailProcessor processor = new EmailProcessor(moqDataSource.Object);
-
-            Assert.Throws<FormatException>(() => processor.GetMessageModelFromFile(emailFileName));
-        }
-
         [Fact]
         public void ProcessMessageTest_NormalFile()
         {

@@ -40,6 +40,10 @@ namespace EmailDetectionService
         {
             get => AppConfiguration.GetValue<int>("ServiceConfig:MaxProcessingFilesCount", 10);
         }
+        public static int DatabaseSyncDelay
+        {
+            get => AppConfiguration.GetValue<int>("ServiceConfig:DatabaseSyncDelay", 5000);
+        }
 
         public static string GetConnectionString(string connectionName)
         {

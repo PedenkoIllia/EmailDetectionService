@@ -24,7 +24,7 @@ namespace EmailDetectionService
             XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
 
             dataSource = new DetectedMessageRepository();
-            processor = new EmailProcessor(dataSource, Config.MaxProcessingFilesCount);
+            processor = new EmailProcessor(dataSource);
 
             _log.Info("Service started");
             Thread thread = new Thread(new ThreadStart(processor.StartProcessMessages));
@@ -57,11 +57,10 @@ namespace EmailDetectionService
                 Console.WriteLine("────────────────────────────┼───────────────────────────────────┼────────────────────────────┼────────────────────────────┼───────────────────────────────┤");
                 foreach (MessageModel msg in messages)
                 {
-                    
-
                     Console.WriteLine(msg.ToFormatString());
                 }
 
+                Console.WriteLine();
                 Console.Write("Press Enter to exit");
                 Console.ReadLine();
             }
